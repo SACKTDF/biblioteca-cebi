@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070d1a">
+<meta name="description" content="Biblioteca de la Unidad Educativa CEBI (Ambato, Ecuador): busca libros, ubícalos en el mapa 3D y descubre repositorios abiertos con Draco, el dragón guardián.">
+<title>Biblioteca CEBI · El Dragón del Saber</title>
+<link rel="icon" href="img/cebi-shield.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&family=Lexend:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="view-inicio">
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="ruler" id="ruler" aria-hidden="true"></div>
+
+<!-- ============ LOADER ============ -->
+<div id="loader" role="status">
+  <div class="ld-in">
+    <img src="img/cebi-shield.png" alt="" class="ld-shield">
+    <h1>Biblioteca CEBI</h1>
+    <p id="ld-msg">Despertando a Draco, el dragón guardián…</p>
+    <div class="ld-bar"><i id="ld-bar"></i></div>
+    <button class="btn gold" id="ld-skip" hidden>Entrar sin esperar</button>
+  </div>
+</div>
+
+<!-- ============ HUD ============ -->
+<header class="hud" id="hud">
+  <a class="crest" href="#inicio" data-go="inicio" aria-label="Biblioteca CEBI, volver a explorar">
+    <img src="img/cebi-shield.png" alt="">
+    <span class="crest-t"><b>Biblioteca CEBI</b><small>Ambato · Ecuador</small></span>
+  </a>
+  <div class="xp" id="xp" title="Escamas del saber: ganas una por cada cosa que descubres">
+    <span class="xp-lv" id="xpLv">Aprendiz</span>
+    <span class="xp-bar"><i id="xpBar"></i></span>
+    <span class="xp-n"><svg data-i="scale"></svg><b id="xpN">0</b></span>
+  </div>
+
+  <form class="omni" id="omni" role="search" autocomplete="off">
+    <svg data-i="search" class="omni-i"></svg>
+    <label class="sr" for="omniQ">Buscar un libro</label>
+    <input id="omniQ" placeholder="¿Qué libro buscas? Título, autor, tema o ISBN" aria-controls="omniDD" aria-expanded="false">
+    <kbd class="omni-k" aria-hidden="true">/</kbd>
+    <div class="omni-dd" id="omniDD" role="listbox"></div>
+  </form>
+
+  <div class="hud-r">
+    <div class="sync" id="sync"><i></i><span>Conectando…</span></div>
+    <button class="ibtn" id="soundBtn" aria-pressed="false" title="Sonido"><svg data-i="soundOff"></svg><span class="sr">Sonido</span></button>
+    <button class="ibtn" id="a11yBtn" aria-expanded="false" aria-controls="a11yPanel" title="Accesibilidad y apoyo NEE"><svg data-i="a11y"></svg><span class="sr">Accesibilidad</span></button>
+    <button class="ibtn lib" id="toolsBtn" title="Herramientas del bibliotecario"><svg data-i="gear"></svg><span class="sr">Herramientas</span></button>
+    <button class="mode" id="modeBtn"><svg data-i="user"></svg><span>Estudiante</span></button>
+  </div>
+</header>
+
+<!-- ============ DOCK (hotbar) ============ -->
+<nav class="dock" id="nav" aria-label="Secciones">
+  <button data-go="inicio"><kbd>1</kbd><svg data-i="castle"></svg><span>Explorar</span></button>
+  <button data-go="catalogo"><kbd>2</kbd><svg data-i="books"></svg><span>Catálogo</span></button>
+  <button data-go="descubridor"><kbd>3</kbd><svg data-i="compass"></svg><span>Descubridor</span></button>
+  <button data-go="mapa"><kbd>4</kbd><svg data-i="map"></svg><span>Mapa</span></button>
+  <button data-go="prestamos" class="lib"><kbd>5</kbd><svg data-i="swap"></svg><span>Préstamos</span></button>
+  <button data-go="inventario" class="lib"><kbd>6</kbd><svg data-i="clip"></svg><span>Inventario</span></button>
+  <button data-go="reportes" class="lib"><kbd>7</kbd><svg data-i="chart"></svg><span>Reportes</span></button>
+</nav>
+
+<!-- 3D interaction overlays -->
+<div class="tip" id="tip" role="tooltip"></div>
+<div class="speech" id="bubble" role="status" aria-live="polite">
+  <div class="speech-h"><b>Draco</b><span id="bubbleTag"></span></div>
+  <p id="bubbleText"></p>
+  <div class="speech-a" id="bubbleAct"></div>
+</div>
+
+<main class="views">
+  <!-- EXPLORAR -->
+  <section class="view" id="v-inicio">
+    <div class="hero">
+      <div class="eyebrow">Unidad Educativa CEBI · Colegio del Mundo IB</div>
+      <h1>La Biblioteca<br>del <em>Dragón</em></h1>
+      <p class="lead">Busca arriba, toca un estante para curiosear sus libros o haz clic en <b>Draco</b> para que te cuente algo que no sabías.</p>
+      <div class="hero-stats" id="homeStats"></div>
+    </div>
+    <aside class="quests" id="quests" aria-label="Misiones">
+      <div class="quests-h"><svg data-i="flag"></svg><b>Misiones</b><span id="questN">0/5</span></div>
+      <ol id="questList"></ol>
+    </aside>
+  </section>
+
+  <!-- CATALOGO -->
+  <section class="view" id="v-catalogo" aria-labelledby="c-t">
+    <div class="tome">
+      <div class="tome-h"><div><div class="eyebrow">Inventario mágico</div><h2 id="c-t">Catálogo</h2></div><button class="x" data-go="inicio" aria-label="Cerrar"><svg data-i="x"></svg></button></div>
+      <div class="cat-layout">
+        <aside class="filters" id="filters">
+          <div class="searchbar"><svg data-i="search"></svg><label class="sr" for="catQ">Buscar en el catálogo</label><input class="inp" id="catQ" placeholder="Buscar por cualquier dato"></div>
+          <div class="fg"><label class="f" for="fC">Colección</label><select class="inp" id="fC"></select></div>
+          <div class="fg"><label class="f" for="fA">Tema / Área</label><select class="inp" id="fA"></select></div>
+          <div class="fg"><label class="f" for="fU">Ubicación</label><select class="inp" id="fU"></select></div>
+          <div class="fg"><label class="f" for="fL">Idioma</label><select class="inp" id="fL"></select></div>
+          <div class="fg"><label class="f" for="fD">Disponibilidad</label><select class="inp" id="fD"><option value="">Todas</option><option value="yes">Disponible</option><option value="no">Prestado</option><option value="off">Fuera de servicio</option></select></div>
+          <div class="fg"><label class="f" for="fF">Funcionamiento</label><select class="inp" id="fF"><option value="">Todos</option><option value="sirve">Sirve</option><option value="rev">Por revisar</option><option value="reparacion">En reparación</option><option value="no">No sirve</option><option value="baja">Dado de baja</option></select></div>
+          <div class="fg"><label class="f" for="fS">Ordenar por</label><select class="inp" id="fS"><option value="rel">Relevancia</option><option value="az">Título A–Z</option><option value="year">Más recientes</option><option value="loans">Más prestados</option></select></div>
+          <label class="check"><input type="checkbox" id="fNee"> Lectura corta e ilustrada (apoyo NEE)</label>
+          <button class="btn sec sm" id="fReset"><svg data-i="x"></svg>Limpiar filtros</button>
+        </aside>
+        <div class="cat-main">
+          <div class="res-h"><span id="catCount"></span><span class="chips" id="catChips"></span></div>
+          <div class="books" id="catList"></div>
+          <div class="more"><button class="btn sec" id="catMore">Cargar más</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DESCUBRIDOR -->
+  <section class="view" id="v-descubridor" aria-labelledby="d-t">
+    <div class="tome">
+      <div class="tome-h"><div><div class="eyebrow">Biblioteca física + repositorios abiertos</div><h2 id="d-t">Descubridor</h2></div><button class="x" data-go="inicio" aria-label="Cerrar"><svg data-i="x"></svg></button></div>
+      <form class="bigsearch" id="discForm" role="search"><svg data-i="search"></svg><label class="sr" for="discQ">Tema a investigar</label>
+        <input id="discQ" placeholder="¿Qué quieres investigar? Ej.: cambio climático, fracciones, Platero y yo"><button class="btn pri" type="submit"><svg data-i="flame"></svg>Buscar</button></form>
+      <div class="aud" id="aud" role="group" aria-label="Nivel">
+        <span class="chip on" data-a="1">PEP · Explorador</span><span class="chip" data-a="2">PAI · Indagador</span><span class="chip" data-a="3">PD · Investigador</span>
+      </div>
+      <div class="chips" id="discChips"></div>
+      <div class="dgrid" id="discRes" style="display:none">
+        <div class="col">
+          <div class="card"><div class="sec-h"><svg data-i="castle"></svg>En la Biblioteca CEBI</div><div id="discLocal"></div></div>
+          <div class="card" id="dragonCard"><div class="sec-h"><svg data-i="flame"></svg>Draco te guía</div><div id="dragonOut"></div></div>
+        </div>
+        <div class="col">
+          <div class="card"><div class="sec-h"><svg data-i="globe"></svg>Libros y artículos libres en la web</div><div id="discWeb"></div></div>
+          <div class="card"><div class="sec-h"><svg data-i="ext"></svg>Repositorios de acceso abierto</div><div id="discRepos"></div>
+            <p class="note">Enlaces a buscadores gratuitos. Revisa autor, fecha y revista; prioriza artículos revisados por pares.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAPA -->
+  <section class="view" id="v-mapa" aria-labelledby="m-t">
+    <aside class="map-ui">
+      <div class="tome-h"><div><div class="eyebrow">Arrastra para girar</div><h2 id="m-t">Mapa 3D</h2></div><button class="x" data-go="inicio" aria-label="Cerrar"><svg data-i="x"></svg></button></div>
+      <div id="shelfList"></div>
+    </aside>
+    <div class="map-info" id="mapInfo"></div>
+  </section>
+
+  <!-- PRESTAMOS -->
+  <section class="view" id="v-prestamos" aria-labelledby="p-t">
+    <div class="tome">
+      <div class="tome-h"><div><div class="eyebrow">Registro de salidas y devoluciones</div><h2 id="p-t">Préstamos</h2></div><button class="x" data-go="inicio" aria-label="Cerrar"><svg data-i="x"></svg></button></div>
+      <div class="banner" id="roBanner1"></div>
+      <div class="two">
+        <div class="card"><div class="sec-h"><svg data-i="out"></svg>Registrar salida</div>
+          <form id="loanForm" autocomplete="off">
+            <div class="picker"><label class="f" for="lBookQ">Libro</label><input class="inp" id="lBookQ" placeholder="Título, código (PAI-0123) o ISBN"><div class="dd" id="lBookDD"></div><div class="sel" id="lBookSel"></div></div>
+            <div><label class="f" for="lName">Nombre de quien lo lleva</label><input class="inp" id="lName" placeholder="Nombre y apellido"></div>
+            <div class="grid2"><div><label class="f" for="lType">Tipo</label><select class="inp" id="lType"><option>Estudiante</option><option>Docente</option><option>Personal administrativo</option><option>Otro</option></select></div>
+              <div><label class="f" for="lCourse">Curso / Área</label><input class="inp" id="lCourse" list="courses" placeholder="Ej.: 3° PAI"></div></div>
+            <div class="grid2"><div><label class="f" for="lOut">Fecha de salida</label><input class="inp" type="date" id="lOut"></div><div><label class="f" for="lDue">Devolver hasta</label><input class="inp" type="date" id="lDue"></div></div>
+            <div class="grid2"><div><label class="f" for="lCond">Estado al salir</label><select class="inp" id="lCond"><option>Buen estado</option><option>Desgaste leve</option><option>Con daños previos</option></select></div>
+              <div><label class="f" for="lBy">Registrado por</label><input class="inp" id="lBy" placeholder="Bibliotecario(a)"></div></div>
+            <div><label class="f" for="lNote">Observaciones</label><input class="inp" id="lNote" placeholder="Opcional"></div>
+            <button class="btn pri wide" type="submit"><svg data-i="out"></svg>Registrar salida</button>
+          </form><datalist id="courses"></datalist>
+        </div>
+        <div class="card">
+          <div class="row-h"><div class="sec-h"><svg data-i="clock"></svg>Libros fuera</div><label class="sr" for="loanQ">Buscar préstamos</label><input class="inp" id="loanQ" placeholder="Buscar persona o libro"></div>
+          <div class="tabs" id="loanTabs"><span class="chip on" data-t="all">Activos</span><span class="chip" data-t="late">Vencidos</span><span class="chip" data-t="soon">Vencen en 2 días</span><span class="chip" data-t="hist">Historial</span></div>
+          <div id="loanList"></div>
+          <button class="btn gold sm" data-print="activos"><svg data-i="print"></svg>Imprimir quién tiene libros</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INVENTARIO -->
+  <section class="view" id="v-inventario" aria-labelledby="i-t">
+    <div class="tome">
+      <div class="tome-h"><div><div class="eyebrow">Entradas, salidas y estado</div><h2 id="i-t">Inventario</h2></div><button class="x" data-go="inicio" aria-label="Cerrar"><svg data-i="x"></svg></button></div>
+      <div class="banner" id="roBanner2"></div>
+      <div class="tabs" id="invTabs"><span class="chip on" data-t="rev">Revisión de estado</span><span class="chip" data-t="in">Registrar ingreso</span><span class="chip" data-t="mov">Movimientos</span><span class="chip" data-t="off">Fuera de servicio</span></div>
+      <div class="card" id="invBody"></div>
+    </div>
+  </section>
+
+  <!-- REPORTES -->
+  <section class="view" id="v-reportes" aria-labelledby="r-t">
+    <div class="tome">
+      <div class="tome-h"><div><div class="eyebrow">Panorama y registros imprimibles</div><h2 id="r-t">Reportes</h2></div><button class="x" data-go="inicio" aria-label="Cerrar"><svg data-i="x"></svg></button></div>
+      <div class="card printcard">
+        <div class="sec-h"><svg data-i="print"></svg>Imprimir un registro</div>
+        <div class="grid4">
+          <div><label class="f" for="prType">Reporte</label><select class="inp" id="prType">
+            <option value="activos">Quién tiene libros ahora</option><option value="vencidos">Pendientes y vencidos</option>
+            <option value="historial">Historial de préstamos</option><option value="movs">Entradas y salidas (movimientos)</option><option value="fuera">Libros fuera de servicio</option></select></div>
+          <div><label class="f" for="prFrom">Desde</label><input class="inp" type="date" id="prFrom"></div>
+          <div><label class="f" for="prTo">Hasta</label><input class="inp" type="date" id="prTo"></div>
+          <div class="end"><button class="btn gold wide" id="prGo"><svg data-i="print"></svg>Generar e imprimir</button></div>
+        </div>
+        <p class="note">Las fechas solo se usan en el historial y los movimientos. El reporte sale con el escudo, la fecha y hora exactas y líneas de firma. Puedes guardarlo como PDF desde la ventana de impresión.</p>
+      </div>
+      <div class="exp"><button class="btn sec sm" data-exp="inv"><svg data-i="down"></svg>Inventario CSV</button><button class="btn sec sm" data-exp="loans"><svg data-i="down"></svg>Préstamos CSV</button><button class="btn sec sm" data-exp="mov"><svg data-i="down"></svg>Movimientos CSV</button></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="rgrid" id="rgrid"></div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ ACCESSIBILITY PANEL (NEE) ============ -->
+<aside class="a11y" id="a11yPanel" aria-label="Accesibilidad y apoyo NEE" hidden>
+  <div class="tome-h"><div><div class="eyebrow">Apoyo NEE</div><h2>Accesibilidad</h2></div><button class="x" id="a11yClose" aria-label="Cerrar"><svg data-i="x"></svg></button></div>
+  <div class="a11y-g">
+    <div class="a11y-row"><span>Tamaño del texto</span><div class="seg" id="aSize"><button data-v="1">A</button><button data-v="1.15">A+</button><button data-v="1.3">A++</button><button data-v="1.5">A+++</button></div></div>
+    <label class="tgl"><input type="checkbox" id="aFont"><span>Letra de lectura fácil <small>(Lexend, ayuda en dislexia)</small></span></label>
+    <label class="tgl"><input type="checkbox" id="aSpace"><span>Más espacio entre letras y líneas</span></label>
+    <label class="tgl"><input type="checkbox" id="aContrast"><span>Alto contraste</span></label>
+    <label class="tgl"><input type="checkbox" id="aRuler"><span>Guía de lectura <small>(una franja sigue al cursor)</small></span></label>
+    <label class="tgl"><input type="checkbox" id="aCalm"><span>Modo calma <small>(sin brillos, polvo ni movimientos rápidos)</small></span></label>
+    <label class="tgl"><input type="checkbox" id="aSimple"><span>Modo sencillo <small>(oculta el mundo 3D, botones grandes)</small></span></label>
+    <label class="tgl"><input type="checkbox" id="aSpeak"><span>Leer en voz alta <small>(fichas de libros y mensajes de Draco)</small></span></label>
+    <div class="a11y-row"><span>Velocidad de voz</span><input type="range" id="aRate" min="0.6" max="1.4" step="0.1" value="0.95" aria-label="Velocidad de voz"></div>
+    <div class="a11y-row"><span>Calidad gráfica</span><div class="seg" id="aFx"><button data-v="low">Baja</button><button data-v="mid">Media</button><button data-v="high">Alta</button></div></div>
+    <button class="btn sec sm" id="aReset">Restablecer</button>
+  </div>
+  <p class="note">Atajos: <kbd>/</kbd> buscar · <kbd>1</kbd>–<kbd>7</kbd> secciones · <kbd>Esc</kbd> cerrar. Todo funciona con teclado y lector de pantalla.</p>
+</aside>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="box" id="modalBox"></div></div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<div id="printRoot" aria-hidden="true"></div>
+
+<script src="js/config.js"></script>
+<script src="data/books.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="js/store-sheets.js"></script>
+<script src="js/app.js"></script>
+<script src="js/features.js"></script>
+<script src="js/world.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>
